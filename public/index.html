@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bol — live Hindi + English transcription</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Noto+Sans:wght@400;500&family=Noto+Sans+Devanagari:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="top">
+    <h1>Bol</h1>
+    <p>Speak in Hindi, English, or both. See it written as you talk.</p>
+  </header>
+
+  <main>
+    <section class="stage" aria-labelledby="stage-title">
+      <h2 id="stage-title" class="sr-only">Live transcription</h2>
+      <div id="live" class="live" aria-live="polite" data-empty="true">Your words will appear here.</div>
+      <div class="controls">
+        <button id="recBtn" class="rec" type="button">
+          <span class="dot" aria-hidden="true"></span>
+          <span id="recLabel">Start speaking</span>
+        </button>
+        <span id="status" class="status" role="status"></span>
+        <span id="timer" class="timer" hidden>0:00</span>
+      </div>
+    </section>
+
+    <section class="history" aria-labelledby="hist-title">
+      <div class="hist-head">
+        <h2 id="hist-title">Saved transcriptions</h2>
+        <div class="hist-tools">
+          <input id="search" type="search" placeholder="Search text or title" aria-label="Search transcriptions" />
+          <button id="newBtn" type="button" class="ghost">Add note</button>
+        </div>
+      </div>
+      <ul id="list" class="list"></ul>
+      <nav class="pager" aria-label="Pagination">
+        <button id="prev" type="button" class="ghost">Previous</button>
+        <span id="pageInfo"></span>
+        <button id="next" type="button" class="ghost">Next</button>
+      </nav>
+    </section>
+  </main>
+
+  <dialog id="editor">
+    <form method="dialog" id="editorForm">
+      <h3 id="editorTitle">Edit transcription</h3>
+      <label>Title
+        <input id="edTitle" type="text" maxlength="120" placeholder="Optional" />
+      </label>
+      <label>Text
+        <textarea id="edText" rows="8" required></textarea>
+      </label>
+      <div class="dlg-actions">
+        <button type="button" id="edCancel" class="ghost">Cancel</button>
+        <button type="submit" id="edSave" class="primary">Save changes</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>
