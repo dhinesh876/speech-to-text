@@ -1,45 +1,77 @@
 # Bol — Real-time Hindi + English Speech-to-Text
 
-Live multilingual transcription with a saved-history dashboard (full CRUD).
+Speak in Hindi, English, or a mix of both. The app transcribes it in near real-time and saves each transcription to a database. A dashboard lets you search, edit, and delete saved transcriptions.
 
-**Stack:** Node.js, Express, WebSocket (`ws`), MongoDB (Mongoose), Gemini Live API (`@google/genai`), vanilla JS frontend (no build step).
+- **Live app:** https://speech-to-text-f8lu.onrender.com
+- **Repo:** https://github.com/dhinesh876/speech-to-text
+
+The app runs on Render's free tier, so the first load can take up to a minute to wake up.
+
+**Stack:** Node.js, Express, WebSocket (`ws`), MongoDB (Mongoose), Gemini API (`@google/genai`), vanilla JS frontend (no build step).
+
+## Features
+
+- Real-time transcription of mixed Hindi and English (Hinglish). Hindi comes out in Devanagari, English in Latin script.
+- Transcription history saved in MongoDB.
+- Full CRUD: create (record or add a typed note), read (list with pagination), update (edit text and title), delete.
+- Search by text or title.
+- The live text box clears after each recording is saved.
 
 ## How it works
 
 ```
-Browser mic → AudioWorklet (16 kHz PCM16) → WebSocket → Node server → Gemini Live
-                                                    ↑                       │
-                                    live text  ←────┴── input transcription ┘
+Browser mic → AudioWorklet (16 kHz PCM16) → WebSocket → Node server → Gemini
+                                                   ↑                      │
+                                    live text ←────┴──── transcript ──────┘
 On Stop → text saved to MongoDB via REST → history list refreshes
 ```
 
+Audio is sent to Gemini in short chunks (every 4 seconds by default) with a prompt tuned for Hinglish. Failed chunks retry automatically, and the audio is kept if Gemini is overloaded.
+
 The Gemini API key stays on the server. The browser never sees it.
 
-## Setup (local)
+There is also a second mode, `TRANSCRIBE_MODE=live`, which uses Gemini Live's built-in transcription.
 
-Requirements: Node 18+, MongoDB (local or Atlas), a free Gemini API key.
+## Run locally
+
+Requirements: Node 18+, MongoDB (local or Atlas), a free Gemini API key from https://aistudio.google.com/apikey.
 
 ```bash
-git clone <your-repo-url> && cd speech-to-text
+git clone https://github.com/dhinesh876/speech-to-text.git
+cd speech-to-text
 npm install
-cp .env.example .env      # Windows: copy .env.example .env
+```
+
+Create the env file:
+
+```bash
+# Mac/Linux
+cp .env.example .env
+# Windows
+copy .env.example .env
 ```
 
 Edit `.env`:
 
 | Variable | Value |
 |---|---|
-| `GEMINI_API_KEY` | Free key from https://aistudio.google.com/apikey |
+| `GEMINI_API_KEY` | Your Gemini API key |
 | `MONGODB_URI` | `mongodb://127.0.0.1:27017/speech_to_text` or your Atlas URI |
-| `GEMINI_LIVE_MODEL` | Live model id (default `gemini-3.1-flash-live-preview`). If connect fails with "model not found", pick a current Live model from AI Studio. |
+| `TRANSCRIBE_MODE` | `chunk` (default) or `live` |
+| `GEMINI_TRANSCRIBE_MODEL` | `gemini-3.8-flash` (used in chunk mode) |
+| `GEMINI_FALLBACK_MODELS` | Optional, comma-separated backup models |
+| `CHUNK_MS` | Chunk length in ms, default `4000` |
+| `GEMINI_LIVE_MODEL` | Only for `live` mode |
 
-Start MongoDB locally if needed (`mongod`, or `docker run -d -p 27017:27017 mongo:7`), then:
+Start the app:
 
 ```bash
-npm start        # or: npm run dev
+npm start
 ```
 
-Open http://localhost:3000, click **Start speaking**, allow the mic, speak. Click **Stop** to save.
+Open http://localhost:3000, click **Start speaking**, allow the mic, speak, then click **Stop**.
+
+Check http://localhost:3000/api/health. It should return `{"ok":true,"db":true}`.
 
 ## REST API
 
@@ -50,33 +82,31 @@ Open http://localhost:3000, click **Start speaking**, allow the mic, speak. Clic
 | POST | `/api/transcriptions` | Create `{ title?, text, durationSec?, source? }` |
 | PUT | `/api/transcriptions/:id` | Update `{ title?, text? }` |
 | DELETE | `/api/transcriptions/:id` | Delete |
-| WS | `/ws/live` | Live audio in, transcript out |
+| WS | `/ws/live` | Audio in, transcript out |
 
-## Deploy (Render + MongoDB Atlas, free)
+## Deploy (Render + MongoDB Atlas)
 
-1. **Atlas:** create a free M0 cluster, add a database user, allow `0.0.0.0/0` under Network Access, copy the connection string.
-2. **GitHub:** push this repo.
-3. **Render:** New → Web Service → connect the repo.
+1. **Atlas:** create a free M0 cluster, add a database user, allow `0.0.0.0/0` under Network Access, and copy the connection string with the database name `speech_to_text`.
+2. **Render:** New, Web Service, connect this repo.
    - Build command: `npm install`
    - Start command: `npm start`
-   - Environment: `MONGODB_URI`, `GEMINI_API_KEY`, `GEMINI_LIVE_MODEL`
-4. Open the Render URL (HTTPS, so the mic works). WebSockets are supported out of the box.
+   - Environment variables: `MONGODB_URI`, `GEMINI_API_KEY`, `TRANSCRIBE_MODE=chunk`, `GEMINI_TRANSCRIBE_MODEL=gemini-3.8-flash`, `CHUNK_MS=4000`
+3. Open the Render URL. It is served over HTTPS, so the microphone works. WebSockets are supported.
 
 Vercel and Netlify do not support long-lived WebSocket servers. Use Render, Railway, or Fly.io.
 
-## Push to GitHub
+## Troubleshooting
 
-```bash
-git init
-git add .
-git commit -m "Real-time Hindi+English speech-to-text with MongoDB dashboard"
-git branch -M main
-git remote add origin https://github.com/<you>/<repo>.git
-git push -u origin main
-```
+| Problem | Fix |
+|---|---|
+| `MongooseServerSelectionError` | MongoDB is not running, or the Atlas URI or IP allowlist is wrong. |
+| "GEMINI_API_KEY is not set" | Add it to `.env` (or Render env vars) and restart. |
+| 404 "model no longer available" | Set `GEMINI_TRANSCRIBE_MODEL` to a current model name. |
+| 503 "high demand" | Temporary on Google's side. The app retries automatically. |
+| Mic blocked | Allow microphone access in the browser. Use `localhost` or HTTPS. |
 
 ## Notes
 
 - Mic access needs HTTPS or `localhost`.
-- Transcription quality for code-mixed speech (Hinglish) depends on the Gemini model. Speak clearly, one speaker.
-- The live endpoint is open. Before sharing the URL widely, add auth or rate limiting to protect your Gemini quota.
+- Code-mixed speech quality depends on the Gemini model. Speak clearly, one speaker at a time.
+- The live endpoint is open. Add auth or rate limiting before sharing the URL widely, to protect your Gemini quota.
